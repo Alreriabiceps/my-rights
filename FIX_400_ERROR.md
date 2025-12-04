@@ -26,7 +26,7 @@ This means Firebase can't authenticate your API key or the Authentication servic
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Select your project: **my-rights-pala-ako**
 3. Go to **APIs & Services** → **Credentials**
-4. Find your API key: `AIzaSyDUJaoYEgKSxn61VCHSgIxGQBNCYPE6dDo`
+4. Find your API key: `AIzaSyXXXXXXXXXXXXXXXXXXXXXXXXXXXXX` (example format)
 5. Click on the API key to edit it
 6. Check **API restrictions**:
    - If restricted, make sure these APIs are enabled:

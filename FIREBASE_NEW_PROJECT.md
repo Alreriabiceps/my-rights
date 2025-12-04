@@ -63,7 +63,7 @@ NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789012
 NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789012:web:abcdef123456
 
 # Keep your Gemini key
-GEMINI_API_KEY=AIzaSyCETjpMkHyy0mB3mcK-diYb2B1PRTnddNY
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ### Step 5: Enable Authentication (Fresh Project)
