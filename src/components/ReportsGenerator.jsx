@@ -25,6 +25,8 @@ import {
   Edit3,
   Check,
   Loader2,
+  FileCheck,
+  Layers,
 } from "lucide-react";
 
 // Title Page Component
@@ -151,6 +153,12 @@ export default function ReportsGenerator({ analysis }) {
   const printRef = useRef(null);
   const [activeReport, setActiveReport] = useState("salaysay");
   const [includeTitlePage, setIncludeTitlePage] = useState(true);
+  const [selectedReports, setSelectedReports] = useState({
+    salaysay: true,
+    summary: false,
+    legal: false,
+  });
+  const [combineMode, setCombineMode] = useState(false);
   const [formData, setFormData] = useState({
     fullName: "",
     address: "",
@@ -373,7 +381,7 @@ export default function ReportsGenerator({ analysis }) {
   };
 
   // Generate Title Page
-  const generateTitlePage = async (pdf, pageWidth, pageHeight) => {
+  const generateTitlePage = async (pdf, pageWidth, pageHeight, margin = 72) => {
     const referenceNo = `LEGAIZE-${Date.now().toString().slice(-8)}`;
 
     pdf.setFillColor(255, 255, 255);
@@ -484,18 +492,21 @@ export default function ReportsGenerator({ analysis }) {
 
     pdf.setFontSize(8);
     pdf.setTextColor(0, 0, 0);
-    pdf.text("REFERENCE NUMBER", pageWidth - 60, infoY, { align: "right" });
+    // Use margin for right alignment to prevent overflow
+    pdf.text("REFERENCE NUMBER", pageWidth - margin, infoY, { align: "right" });
     pdf.setFontSize(10);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
-    pdf.text(referenceNo, pageWidth - 60, infoY + 15, { align: "right" });
+    pdf.text(referenceNo, pageWidth - margin, infoY + 15, { align: "right" });
     pdf.setFontSize(8);
     pdf.setTextColor(0, 0, 0);
-    pdf.text("DATE PREPARED", pageWidth - 60, infoY + 35, { align: "right" });
+    pdf.text("DATE PREPARED", pageWidth - margin, infoY + 35, {
+      align: "right",
+    });
     pdf.setFontSize(10);
     pdf.setFont("helvetica", "bold");
     pdf.setTextColor(0, 0, 0);
-    pdf.text(formatDate(formData.date), pageWidth - 60, infoY + 50, {
+    pdf.text(formatDate(formData.date), pageWidth - margin, infoY + 50, {
       align: "right",
     });
 
@@ -547,7 +558,14 @@ export default function ReportsGenerator({ analysis }) {
       }, ` +
       `matapos makapanumpa ng naaayon sa batas, ay malaya at kusang-loob na nagpapahayag ng mga sumusunod:`;
 
-    y = addWrappedText(pdf, openingText, margin, y, pageWidth - margin * 2, 11);
+    y = addWrappedText(
+      pdf,
+      openingText,
+      margin,
+      y,
+      pageWidth - margin * 2 - 20,
+      11
+    );
     y += 15;
 
     // Item 1
@@ -561,24 +579,30 @@ export default function ReportsGenerator({ analysis }) {
       item1Text,
       margin + 20,
       y - 11,
-      pageWidth - margin * 2 - 20,
+      pageWidth - margin * 2 - 40, // More buffer
       11
     );
     y += 10;
 
     // Case details box
     const boxY = y;
+    const boxMargin = 20;
+    const boxWidth = pageWidth - margin * 2 - boxMargin * 2;
     pdf.setFillColor(245, 245, 245);
-    pdf.rect(margin + 20, boxY, pageWidth - margin * 2 - 40, 60, "F");
+    pdf.rect(margin + boxMargin, boxY, boxWidth, 60, "F");
     pdf.setDrawColor(200, 200, 200);
-    pdf.rect(margin + 20, boxY, pageWidth - margin * 2 - 40, 60, "S");
+    pdf.rect(margin + boxMargin, boxY, boxWidth, 60, "S");
 
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(10);
     let detailY = boxY + 10;
     if (analysis?.caseType) {
       pdf.setFont("helvetica", "bold");
-      pdf.text(`Uri ng Kaso: ${analysis.caseType}`, margin + 30, detailY);
+      pdf.text(
+        `Uri ng Kaso: ${analysis.caseType}`,
+        margin + boxMargin + 15,
+        detailY
+      );
       detailY += 12;
     }
     pdf.setFont("helvetica", "normal");
@@ -587,10 +611,10 @@ export default function ReportsGenerator({ analysis }) {
       "[Ilagay dito ang detalyadong salaysay ng pangyayari]";
     const detailLines = pdf.splitTextToSize(
       details,
-      pageWidth - margin * 2 - 60
+      boxWidth - 30 // Text width within box with padding
     );
     detailLines.forEach((line, idx) => {
-      pdf.text(line, margin + 30, detailY + idx * 10);
+      pdf.text(line, margin + boxMargin + 15, detailY + idx * 10);
     });
     y = boxY + 70;
 
@@ -609,8 +633,15 @@ export default function ReportsGenerator({ analysis }) {
     if (analysis?.rights && analysis.rights.length > 0) {
       analysis.rights.forEach((right, index) => {
         pdf.setFontSize(10);
-        pdf.text(`• ${right}`, margin + 30, y);
-        y += 12;
+        // Wrap text to prevent overflow
+        const rightLines = pdf.splitTextToSize(
+          `• ${right}`,
+          pageWidth - margin * 2 - 80 // Buffer to prevent side overflow
+        );
+        rightLines.forEach((line, idx) => {
+          pdf.text(line, margin + 30, y + idx * 12);
+        });
+        y += rightLines.length * 12;
         if (y > pageHeight - margin - 50) {
           pdf.addPage();
           y = margin + 20;
@@ -632,19 +663,44 @@ export default function ReportsGenerator({ analysis }) {
 
     if (analysis?.relevantLaws && analysis.relevantLaws.length > 0) {
       analysis.relevantLaws.slice(0, 5).forEach((law, index) => {
-        pdf.setFontSize(10);
-        pdf.setFont("helvetica", "bold");
-        pdf.text(`${law.title || law.name}`, margin + 30, y);
-        y += 10;
-        if (law.law || law.article) {
-          pdf.setFont("helvetica", "normal");
-          pdf.text(`- ${law.law || law.article}`, margin + 40, y);
-          y += 10;
-        }
         if (y > pageHeight - margin - 50) {
           pdf.addPage();
           y = margin + 20;
         }
+        pdf.setFontSize(10);
+        pdf.setFont("helvetica", "bold");
+        // Wrap law title to prevent overflow
+        const titleLines = pdf.splitTextToSize(
+          `${law.title || law.name}`,
+          pageWidth - margin * 2 - 80
+        );
+        titleLines.forEach((line, idx) => {
+          pdf.text(line, margin + 30, y + idx * 10);
+        });
+        y += titleLines.length * 10;
+        if (law.law || law.article) {
+          pdf.setFont("helvetica", "normal");
+          const citationLines = pdf.splitTextToSize(
+            `- ${law.law || law.article}`,
+            pageWidth - margin * 2 - 70
+          );
+          citationLines.forEach((line, idx) => {
+            pdf.text(line, margin + 40, y + idx * 10);
+          });
+          y += citationLines.length * 10;
+        }
+        if (law.description) {
+          pdf.setFontSize(9);
+          const descLines = pdf.splitTextToSize(
+            law.description,
+            pageWidth - margin * 2 - 70
+          );
+          descLines.forEach((line, idx) => {
+            pdf.text(`  ${line}`, margin + 40, y + idx * 10);
+          });
+          y += descLines.length * 10;
+        }
+        y += 5; // Space between laws
       });
     }
 
@@ -660,7 +716,7 @@ export default function ReportsGenerator({ analysis }) {
       item4Text,
       margin + 20,
       y - 11,
-      pageWidth - margin * 2 - 20,
+      pageWidth - margin * 2 - 40, // More buffer
       11
     );
     y += 15;
@@ -675,7 +731,7 @@ export default function ReportsGenerator({ analysis }) {
       item5Text,
       margin + 20,
       y - 11,
-      pageWidth - margin * 2 - 20,
+      pageWidth - margin * 2 - 40, // More buffer
       11
     );
     y += 20;
@@ -687,7 +743,14 @@ export default function ReportsGenerator({ analysis }) {
     )}, dito sa ${
       formData.address?.split(",").pop()?.trim() || "________________________"
     }, Pilipinas.`;
-    y = addWrappedText(pdf, closingText, margin, y, pageWidth - margin * 2, 11);
+    y = addWrappedText(
+      pdf,
+      closingText,
+      margin,
+      y,
+      pageWidth - margin * 2 - 20,
+      11
+    );
     y += 30;
 
     // Signature area
@@ -731,7 +794,14 @@ export default function ReportsGenerator({ analysis }) {
     pdf.setFont("helvetica", "normal");
     const notaryText =
       "SUBSCRIBED AND SWORN to before me this _____ day of _______________, 20_____ at _________________________, Philippines, affiant exhibiting to me his/her valid government-issued ID No. ________________________ issued on __________________ at ________________________.";
-    y = addWrappedText(pdf, notaryText, margin, y, pageWidth - margin * 2, 8);
+    y = addWrappedText(
+      pdf,
+      notaryText,
+      margin,
+      y,
+      pageWidth - margin * 2 - 20,
+      8
+    );
     y += 20;
 
     pdf.line(pageWidth / 2 - 100, y, pageWidth / 2 + 100, y);
@@ -746,6 +816,76 @@ export default function ReportsGenerator({ analysis }) {
       y + 25,
       { align: "center" }
     );
+
+    // Sources and Accuracy Disclaimer
+    y += 50;
+    if (y > pageHeight - margin - 150) {
+      pdf.addPage();
+      y = margin + 20;
+    }
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("MGA SANGGUNIAN / SOURCES", margin, y);
+    y += 15;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    if (analysis?.relevantLaws && analysis.relevantLaws.length > 0) {
+      analysis.relevantLaws.slice(0, 5).forEach((law) => {
+        if (y > pageHeight - margin - 30) {
+          pdf.addPage();
+          y = margin + 20;
+        }
+        const lawTitle = law.title || law.name || "Legal Reference";
+        const citation = law.law || law.article || "";
+        if (citation) {
+          pdf.text(`• ${lawTitle} - ${citation}`, margin + 10, y);
+        } else {
+          pdf.text(`• ${lawTitle}`, margin + 10, y);
+        }
+        y += 10;
+      });
+    }
+    // Wrap long URLs to prevent overflow
+    const lawphilText =
+      "• LawPhil Project (lawphil.net) - Philippine Laws and Jurisprudence";
+    const lawphilLines = pdf.splitTextToSize(
+      lawphilText,
+      pageWidth - margin * 2 - 40
+    );
+    lawphilLines.forEach((line, idx) => {
+      pdf.text(line, margin + 10, y + idx * 10);
+    });
+    y += lawphilLines.length * 10;
+    y += 5;
+    const gazetteText =
+      "• Official Gazette of the Philippines (officialgazette.gov.ph)";
+    const gazetteLines = pdf.splitTextToSize(
+      gazetteText,
+      pageWidth - margin * 2 - 40
+    );
+    gazetteLines.forEach((line, idx) => {
+      pdf.text(line, margin + 10, y + idx * 10);
+    });
+    y += gazetteLines.length * 10;
+    y += 20;
+
+    // Accuracy Disclaimer
+    pdf.setFontSize(8);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(200, 0, 0);
+    pdf.text("IMPORTANT DISCLAIMER:", margin, y);
+    y += 12;
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(0, 0, 0);
+    const disclaimerText =
+      "Ang salaysay na ito ay batay sa impormasyon na ibinigay at sa legal na pagsusuri ng AI system. Ang lahat ng mga batas at karapatan na binanggit ay dapat i-verify sa orihinal na mga dokumento at opisyal na mga sanggunian. Ang dokumentong ito ay para lamang sa impormasyon at hindi dapat gamitin bilang kapalit ng propesyonal na legal na payo. Laging kumonsulta sa isang lisensyadong abogado para sa tumpak at kumpletong legal na gabay.";
+    const disclaimerLines = pdf.splitTextToSize(
+      disclaimerText,
+      pageWidth - margin * 2 - 40 // Increased buffer to prevent overflow
+    );
+    disclaimerLines.forEach((line, idx) => {
+      pdf.text(line, margin, y + idx * 9);
+    });
   };
 
   // Generate Case Summary Document
@@ -756,50 +896,51 @@ export default function ReportsGenerator({ analysis }) {
     pdf.setFontSize(16);
     pdf.setFont("helvetica", "bold");
     pdf.text("CASE SUMMARY REPORT", pageWidth / 2, y, { align: "center" });
-    y += 15;
+    y += 20; // Increased spacing after title
     pdf.setFontSize(10);
     pdf.setFont("helvetica", "normal");
     pdf.text("Legal Analysis and Recommendations", pageWidth / 2, y, {
       align: "center",
     });
-    y += 25;
+    y += 30; // Increased spacing after subtitle
 
     // Report Date and Reference
     pdf.setFontSize(9);
     pdf.text(`Report Date: ${formatDate(formData.date)}`, margin, y);
     pdf.text(
       `Reference No: CASE-${Date.now().toString().slice(-8)}`,
-      pageWidth - margin,
+      pageWidth - margin - 10, // Extra buffer from right edge
       y,
       { align: "right" }
     );
-    y += 20;
+    y += 25; // Increased spacing after header
 
     // Client Information Section
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "bold");
     pdf.text("I. CLIENT INFORMATION", margin, y);
-    y += 15;
+    y += 20; // Increased spacing after heading
     pdf.setFontSize(9);
     pdf.setFont("helvetica", "normal");
     pdf.setFillColor(245, 245, 245);
-    pdf.rect(margin, y, pageWidth - margin * 2, 80, "F");
-    pdf.text(`Name: ${formData.fullName || "N/A"}`, margin + 10, y + 12);
-    pdf.text(`Age: ${formData.age || "N/A"}`, margin + 10, y + 24);
-    pdf.text(`Address: ${formData.address || "N/A"}`, margin + 10, y + 36);
+    pdf.rect(margin, y, pageWidth - margin * 2, 90, "F"); // Increased box height
+    pdf.text(`Name: ${formData.fullName || "N/A"}`, margin + 15, y + 15); // More padding
+    pdf.text(`Age: ${formData.age || "N/A"}`, margin + 15, y + 28);
+    pdf.text(`Address: ${formData.address || "N/A"}`, margin + 15, y + 41);
     pdf.text(
       `Contact: ${formData.contactNumber || "N/A"}`,
-      margin + 10,
-      y + 48
+      margin + 15,
+      y + 54
     );
     pdf.text(
       `Incident Date: ${formatDate(formData.incidentDate) || "N/A"}`,
-      margin + 10,
-      y + 60
+      margin + 15,
+      y + 67
     );
-    y += 90;
+    y += 100; // Increased spacing after section
 
     // Case Overview
+    y += 10; // Extra space before section
     pdf.setFontSize(11);
     pdf.setFont("helvetica", "bold");
     const caseOverviewNum =
@@ -807,30 +948,31 @@ export default function ReportsGenerator({ analysis }) {
         ? "III"
         : "II";
     pdf.text(`${caseOverviewNum}. CASE OVERVIEW`, margin, y);
-    y += 15;
+    y += 20; // Increased spacing after heading
     pdf.setFontSize(9);
     pdf.setFont("helvetica", "normal");
     pdf.setFillColor(245, 245, 245);
-    pdf.rect(margin, y, pageWidth - margin * 2, 50, "F");
+    pdf.rect(margin, y, pageWidth - margin * 2, 70, "F"); // Increased box height
     pdf.text(
       `Case Type: ${analysis?.caseType || "General Legal Inquiry"}`,
-      margin + 10,
-      y + 12
+      margin + 15,
+      y + 15 // More padding from top
     );
-    pdf.text(`Severity Level: ${getSeverityText()}`, margin + 10, y + 24);
+    pdf.text(`Severity Level: ${getSeverityText()}`, margin + 15, y + 30);
     pdf.text(
       `Location: ${formData.incidentLocation || "Not specified"}`,
-      margin + 10,
-      y + 36
+      margin + 15,
+      y + 45
     );
-    y += 60;
+    y += 80; // Increased spacing after section
 
     // Follow-up Questions & Answers
     if (analysis?.followUpQuestions && analysis.followUpQuestions.length > 0) {
+      y += 10; // Extra space before section
       pdf.setFontSize(11);
       pdf.setFont("helvetica", "bold");
       pdf.text("II. ADDITIONAL INFORMATION", margin, y);
-      y += 15;
+      y += 20; // Increased spacing after heading
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "normal");
       pdf.text(
@@ -838,30 +980,51 @@ export default function ReportsGenerator({ analysis }) {
         margin + 10,
         y
       );
-      y += 12;
+      y += 18; // Increased spacing after intro text
 
       analysis.followUpQuestions.forEach((qa, index) => {
-        if (y > pageHeight - margin - 80) {
+        if (y > pageHeight - margin - 100) {
           pdf.addPage();
           y = margin + 20;
         }
-        pdf.setFillColor(245, 245, 245);
-        pdf.rect(margin, y, pageWidth - margin * 2, 50, "F");
-        pdf.setFont("helvetica", "bold");
-        pdf.text(`Q${index + 1}: ${qa.question}`, margin + 10, y + 12);
-        pdf.setFont("helvetica", "normal");
+
+        // Calculate box height based on content
+        // Ensure text width accounts for margins and padding
+        const textWidth = pageWidth - margin * 2 - 80; // Increased buffer to prevent overflow
         const answerLines = pdf.splitTextToSize(
           qa.answer || "No answer provided",
-          pageWidth - margin * 2 - 20
+          textWidth
         );
-        pdf.text(answerLines, margin + 10, y + 24);
-        y += 15 + answerLines.length * 8;
+        const questionLines = pdf.splitTextToSize(qa.question || "", textWidth);
+        let boxHeight =
+          30 + questionLines.length * 10 + 10 + answerLines.length * 10 + 15;
+
+        pdf.setFillColor(245, 245, 245);
+        pdf.rect(margin, y, pageWidth - margin * 2, boxHeight, "F");
+        pdf.setDrawColor(200, 200, 200);
+        pdf.rect(margin, y, pageWidth - margin * 2, boxHeight, "S");
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(9);
+        let qY = y + 15;
+        questionLines.forEach((line, idx) => {
+          pdf.text(`Q${index + 1}: ${line}`, margin + 15, qY + idx * 10);
+        });
+
+        pdf.setFont("helvetica", "normal");
+        let aY = qY + questionLines.length * 10 + 10;
+        answerLines.forEach((line, idx) => {
+          pdf.text(line, margin + 15, aY + idx * 10);
+        });
+
+        y += boxHeight + 15; // Increased spacing between Q&A pairs
       });
-      y += 10;
+      y += 15; // Extra space after all questions
     }
 
     // Applicable Laws
     if (analysis?.relevantLaws && analysis.relevantLaws.length > 0) {
+      y += 10; // Extra space before section
       pdf.setFontSize(11);
       pdf.setFont("helvetica", "bold");
       const lawsNum =
@@ -869,28 +1032,78 @@ export default function ReportsGenerator({ analysis }) {
           ? "IV"
           : "III";
       pdf.text(`${lawsNum}. APPLICABLE LAWS`, margin, y);
-      y += 15;
+      y += 20; // Increased spacing after heading
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "normal");
       analysis.relevantLaws.forEach((law) => {
-        if (y > pageHeight - margin - 50) {
+        if (y > pageHeight - margin - 80) {
           pdf.addPage();
           y = margin + 20;
         }
-        pdf.setFillColor(245, 245, 245);
-        pdf.rect(margin, y, pageWidth - margin * 2, 40, "F");
-        pdf.setFont("helvetica", "bold");
-        pdf.text(law.title || law.name, margin + 10, y + 12);
-        if (law.law || law.article) {
-          pdf.setFont("helvetica", "normal");
-          pdf.text(law.law || law.article, margin + 10, y + 24);
+        const lawTitle = law.title || law.name || "Legal Reference";
+        const citation = law.law || law.article || "";
+        const description = law.description || "";
+
+        // Calculate box height based on content with more padding
+        let boxHeight = 40; // Increased base height
+        if (citation) {
+          const citationLines = pdf.splitTextToSize(
+            citation,
+            pageWidth - margin * 2 - 80 // Increased buffer to prevent overflow
+          );
+          boxHeight += citationLines.length * 10 + 5;
         }
-        y += 45;
+        if (description) {
+          const descLines = pdf.splitTextToSize(
+            description,
+            pageWidth - margin * 2 - 80 // Increased buffer to prevent overflow
+          );
+          boxHeight += descLines.length * 10 + 5;
+        }
+
+        pdf.setFillColor(245, 245, 245);
+        pdf.rect(margin, y, pageWidth - margin * 2, boxHeight, "F");
+        pdf.setDrawColor(200, 200, 200);
+        pdf.rect(margin, y, pageWidth - margin * 2, boxHeight, "S");
+
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(10);
+        pdf.text(lawTitle, margin + 15, y + 18);
+
+        let textY = y + 30; // Increased spacing from title
+        if (citation) {
+          pdf.setFont("helvetica", "normal");
+          pdf.setFontSize(8);
+          const citationLines = pdf.splitTextToSize(
+            citation,
+            pageWidth - margin * 2 - 80 // Increased buffer to prevent overflow
+          );
+          citationLines.forEach((line, idx) => {
+            pdf.text(`Citation: ${line}`, margin + 15, textY + idx * 10);
+          });
+          textY += citationLines.length * 10 + 8; // More spacing
+        }
+        if (description) {
+          pdf.setFontSize(9);
+          pdf.setTextColor(60, 60, 60);
+          const descLines = pdf.splitTextToSize(
+            description,
+            pageWidth - margin * 2 - 80 // Increased buffer to prevent overflow
+          );
+          descLines.forEach((line, idx) => {
+            pdf.text(line, margin + 15, textY + idx * 10);
+          });
+          pdf.setTextColor(0, 0, 0);
+        }
+
+        y += boxHeight + 15; // Increased spacing between laws
       });
+      y += 10; // Extra space after all laws
     }
 
     // Client Rights
     if (analysis?.rights && analysis.rights.length > 0) {
+      y += 10; // Extra space before section
       pdf.setFontSize(11);
       pdf.setFont("helvetica", "bold");
       const rightsNum =
@@ -898,7 +1111,7 @@ export default function ReportsGenerator({ analysis }) {
           ? "V"
           : "IV";
       pdf.text(`${rightsNum}. CLIENT RIGHTS`, margin, y);
-      y += 15;
+      y += 20; // Increased spacing after heading
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "normal");
       analysis.rights.forEach((right) => {
@@ -906,14 +1119,22 @@ export default function ReportsGenerator({ analysis }) {
           pdf.addPage();
           y = margin + 20;
         }
-        pdf.text(`• ${right}`, margin + 10, y);
-        y += 12;
+        // Wrap text to prevent overflow
+        const rightLines = pdf.splitTextToSize(
+          `• ${right}`,
+          pageWidth - margin * 2 - 80 // Increased buffer to prevent side overflow
+        );
+        rightLines.forEach((line, idx) => {
+          pdf.text(line, margin + 15, y + idx * 16);
+        });
+        y += rightLines.length * 16; // Increased spacing between rights
       });
+      y += 10; // Extra space after all rights
     }
 
     // Recommended Actions
     if (analysis?.nextSteps && analysis.nextSteps.length > 0) {
-      y += 10;
+      y += 15; // Extra space before section
       pdf.setFontSize(11);
       pdf.setFont("helvetica", "bold");
       const actionsNum =
@@ -921,7 +1142,7 @@ export default function ReportsGenerator({ analysis }) {
           ? "VI"
           : "V";
       pdf.text(`${actionsNum}. RECOMMENDED ACTIONS`, margin, y);
-      y += 15;
+      y += 20; // Increased spacing after heading
       pdf.setFontSize(9);
       pdf.setFont("helvetica", "normal");
 
@@ -961,7 +1182,7 @@ export default function ReportsGenerator({ analysis }) {
           step.action,
           textX,
           y,
-          pageWidth - textX - margin,
+          pageWidth - textX - margin - 10, // Buffer to prevent overflow
           9
         );
 
@@ -970,32 +1191,141 @@ export default function ReportsGenerator({ analysis }) {
           pdf.setTextColor(100, 100, 100);
           pdf.text(`Deadline: ${step.deadline}`, textX, y + 5);
           pdf.setTextColor(0, 0, 0);
-          y += 15;
+          y += 20; // Increased spacing after deadline
         } else {
-          y += 8;
+          y += 15; // Increased spacing between steps
         }
+        y += 5; // Extra space after each step
       }
+      y += 10; // Extra space after all steps
     }
 
-    // Disclaimer
+    // Sources and References Section
     y += 20;
-    if (y > pageHeight - margin - 80) {
+    if (y > pageHeight - margin - 200) {
+      pdf.addPage();
+      y = margin + 20;
+    }
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("SOURCES AND REFERENCES", margin, y);
+    y += 15;
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+
+    // List all applicable laws with full citations
+    if (analysis?.relevantLaws && analysis.relevantLaws.length > 0) {
+      pdf.setFont("helvetica", "bold");
+      pdf.text("Applicable Philippine Laws:", margin + 10, y);
+      y += 12;
+      pdf.setFont("helvetica", "normal");
+      analysis.relevantLaws.forEach((law) => {
+        if (y > pageHeight - margin - 40) {
+          pdf.addPage();
+          y = margin + 20;
+        }
+        const lawTitle = law.title || law.name || "Legal Reference";
+        const citation = law.law || law.article || "";
+
+        // Wrap law title
+        const titleText = `• ${lawTitle}`;
+        const titleLines = pdf.splitTextToSize(
+          titleText,
+          pageWidth - margin * 2 - 80
+        );
+        titleLines.forEach((line, idx) => {
+          pdf.text(line, margin + 20, y + idx * 10);
+        });
+        y += titleLines.length * 10;
+
+        if (citation) {
+          pdf.setFontSize(8);
+          const citationText = `  Citation: ${citation}`;
+          const citationLines = pdf.splitTextToSize(
+            citationText,
+            pageWidth - margin * 2 - 80
+          );
+          citationLines.forEach((line, idx) => {
+            pdf.text(line, margin + 25, y + idx * 10);
+          });
+          y += citationLines.length * 10;
+          if (law.description) {
+            const appText = `  Application: ${law.description}`;
+            const appLines = pdf.splitTextToSize(
+              appText,
+              pageWidth - margin * 2 - 80
+            );
+            appLines.forEach((line, idx) => {
+              pdf.text(line, margin + 25, y + idx * 10);
+            });
+            y += appLines.length * 10;
+          }
+        }
+        pdf.setFontSize(9);
+        y += 5;
+      });
+    }
+
+    // Standard Legal Resources
+    y += 10;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("Standard Legal Resources:", margin + 10, y);
+    y += 12;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    // Wrap long URLs to prevent overflow
+    const lawphilUrl3 = "• LawPhil Project - https://lawphil.net/";
+    const lawphilUrlLines3 = pdf.splitTextToSize(
+      lawphilUrl3,
+      pageWidth - margin * 2 - 80 // Increased buffer to prevent overflow
+    );
+    lawphilUrlLines3.forEach((line, idx) => {
+      pdf.text(line, margin + 20, y + idx * 10);
+    });
+    y += lawphilUrlLines3.length * 10;
+    pdf.text("  Philippine Laws and Jurisprudence Databank", margin + 25, y);
+    y += 12;
+    const gazetteUrl3 =
+      "• Official Gazette of the Philippines - https://www.officialgazette.gov.ph/";
+    const gazetteUrlLines3 = pdf.splitTextToSize(
+      gazetteUrl3,
+      pageWidth - margin * 2 - 80 // Increased buffer to prevent overflow
+    );
+    gazetteUrlLines3.forEach((line, idx) => {
+      pdf.text(line, margin + 20, y + idx * 10);
+    });
+    y += gazetteUrlLines3.length * 10;
+    y += 10;
+    pdf.text(
+      "  Official publication of the Republic of the Philippines",
+      margin + 25,
+      y
+    );
+
+    // Accuracy Disclaimer
+    y += 20;
+    if (y > pageHeight - margin - 120) {
       pdf.addPage();
       y = margin + 20;
     }
     pdf.setFontSize(8);
-    pdf.setTextColor(0, 0, 0);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(200, 0, 0);
     pdf.setDrawColor(0, 0, 0);
     pdf.line(margin, y, pageWidth - margin, y);
     y += 10;
+    pdf.text("ACCURACY DISCLAIMER:", margin, y);
+    y += 12;
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(0, 0, 0);
     const disclaimerText =
-      "DISCLAIMER: This report is generated for informational purposes only and does not constitute legal advice. Please consult with a licensed attorney for professional legal counsel.";
+      "This report is generated based on AI analysis and available legal information. All laws, citations, and legal references should be verified against official sources and original legal documents. This report is for informational purposes only and does not constitute legal advice. Please consult with a licensed attorney for professional legal counsel. The accuracy of this information depends on the completeness and accuracy of the provided case details.";
     const disclaimerLines = pdf.splitTextToSize(
       disclaimerText,
-      pageWidth - margin * 2
+      pageWidth - margin * 2 - 40 // Increased buffer to prevent overflow
     );
     disclaimerLines.forEach((line, idx) => {
-      pdf.text(line, pageWidth / 2, y + idx * 10, { align: "center" });
+      pdf.text(line, margin, y + idx * 9);
     });
   };
 
@@ -1081,7 +1411,7 @@ export default function ReportsGenerator({ analysis }) {
       factsText,
       margin + 20,
       y,
-      pageWidth - margin * 2 - 20,
+      pageWidth - margin * 2 - 80, // Increased buffer to prevent overflow
       9
     );
     if (formData.additionalDetails) {
@@ -1091,7 +1421,7 @@ export default function ReportsGenerator({ analysis }) {
         `Additional details: ${formData.additionalDetails}`,
         margin + 20,
         y,
-        pageWidth - margin * 2 - 20,
+        pageWidth - margin * 2 - 80, // Increased buffer to prevent overflow
         9
       );
     }
@@ -1217,7 +1547,7 @@ export default function ReportsGenerator({ analysis }) {
           `${step.action}${step.priority === "high" ? " (URGENT)" : ""}`,
           textX,
           y,
-          pageWidth - textX - margin,
+          pageWidth - textX - margin - 10, // Buffer to prevent overflow
           9
         );
         y += 8;
@@ -1230,18 +1560,231 @@ export default function ReportsGenerator({ analysis }) {
       pdf.addPage();
       y = margin + 20;
     }
-    pdf.text("Respectfully submitted,", pageWidth - margin, y, {
+    pdf.text("Respectfully submitted,", pageWidth - margin - 10, y, {
       align: "right",
     });
     y += 30;
     pdf.setDrawColor(0, 0, 0);
-    pdf.line(pageWidth - margin - 200, y, pageWidth - margin, y);
+    const signatureX = pageWidth - margin - 10; // Use margin with buffer
+    pdf.line(signatureX - 200, y, signatureX, y);
     pdf.setFont("helvetica", "bold");
-    pdf.text("Legal Analysis System", pageWidth - margin - 200, y + 10);
+    pdf.text("Legal Analysis System", signatureX - 200, y + 10);
     pdf.setFontSize(8);
     pdf.setFont("helvetica", "normal");
     pdf.setTextColor(0, 0, 0);
-    pdf.text("AI-Powered Legal Assistant", pageWidth - margin - 200, y + 20);
+    pdf.text("AI-Powered Legal Assistant", signatureX - 200, y + 20);
+
+    // Sources and References Section
+    y += 50;
+    if (y > pageHeight - margin - 200) {
+      pdf.addPage();
+      y = margin + 20;
+    }
+    pdf.setFontSize(11);
+    pdf.setFont("helvetica", "bold");
+    pdf.text("V. SOURCES AND REFERENCES", margin, y);
+    y += 15;
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+
+    // List all applicable laws with full citations
+    if (analysis?.relevantLaws && analysis.relevantLaws.length > 0) {
+      pdf.setFont("helvetica", "bold");
+      pdf.text(
+        "A. Applicable Philippine Laws and Jurisprudence:",
+        margin + 10,
+        y
+      );
+      y += 12;
+      pdf.setFont("helvetica", "normal");
+      analysis.relevantLaws.forEach((law, index) => {
+        if (y > pageHeight - margin - 40) {
+          pdf.addPage();
+          y = margin + 20;
+        }
+        const lawTitle = law.title || law.name || "Legal Reference";
+        const citation = law.law || law.article || "";
+
+        // Wrap law title
+        const titleText = `${index + 1}. ${lawTitle}`;
+        const titleLines = pdf.splitTextToSize(
+          titleText,
+          pageWidth - margin * 2 - 80
+        );
+        titleLines.forEach((line, idx) => {
+          pdf.text(line, margin + 20, y + idx * 10);
+        });
+        y += titleLines.length * 10;
+
+        if (citation) {
+          pdf.setFontSize(8);
+          const citationText = `   Citation: ${citation}`;
+          const citationLines = pdf.splitTextToSize(
+            citationText,
+            pageWidth - margin * 2 - 80
+          );
+          citationLines.forEach((line, idx) => {
+            pdf.text(line, margin + 25, y + idx * 10);
+          });
+          y += citationLines.length * 10;
+        }
+        if (law.description) {
+          pdf.setFontSize(8);
+          const appText = `   Application: ${law.description}`;
+          const appLines = pdf.splitTextToSize(
+            appText,
+            pageWidth - margin * 2 - 80
+          );
+          appLines.forEach((line, idx) => {
+            pdf.text(line, margin + 25, y + idx * 10);
+          });
+          y += appLines.length * 10;
+        }
+        pdf.setFontSize(9);
+        y += 5;
+      });
+    }
+
+    // Standard Legal Resources
+    y += 10;
+    pdf.setFont("helvetica", "bold");
+    pdf.text("B. Standard Legal Resources:", margin + 10, y);
+    y += 12;
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    // Wrap long URLs to prevent overflow
+    const lawphilUrl = "1. LawPhil Project - https://lawphil.net/";
+    const lawphilUrlLines = pdf.splitTextToSize(
+      lawphilUrl,
+      pageWidth - margin * 2 - 80 // Increased buffer to prevent overflow
+    );
+    lawphilUrlLines.forEach((line, idx) => {
+      pdf.text(line, margin + 20, y + idx * 10);
+    });
+    y += lawphilUrlLines.length * 10;
+    pdf.text("   Philippine Laws and Jurisprudence Databank", margin + 25, y);
+    y += 12;
+    const gazetteUrl =
+      "2. Official Gazette of the Philippines - https://www.officialgazette.gov.ph/";
+    const gazetteUrlLines = pdf.splitTextToSize(
+      gazetteUrl,
+      pageWidth - margin * 2 - 80 // Increased buffer to prevent overflow
+    );
+    gazetteUrlLines.forEach((line, idx) => {
+      pdf.text(line, margin + 20, y + idx * 10);
+    });
+    y += gazetteUrlLines.length * 10;
+    pdf.text(
+      "   Official publication of the Republic of the Philippines",
+      margin + 25,
+      y
+    );
+
+    // Accuracy Disclaimer
+    y += 20;
+    if (y > pageHeight - margin - 120) {
+      pdf.addPage();
+      y = margin + 20;
+    }
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "bold");
+    pdf.setTextColor(200, 0, 0);
+    pdf.setDrawColor(0, 0, 0);
+    pdf.line(margin, y, pageWidth - margin, y);
+    y += 10;
+    pdf.text("ACCURACY DISCLAIMER AND VERIFICATION REQUIREMENT:", margin, y);
+    y += 12;
+    pdf.setFont("helvetica", "normal");
+    pdf.setTextColor(0, 0, 0);
+    const disclaimerText =
+      "This legal memorandum is generated based on AI analysis of the provided case information and available legal databases. All laws, citations, and legal references cited herein should be verified against official sources, including but not limited to: the Official Gazette of the Philippines, LawPhil Project, and original legal documents. This memorandum is for informational and educational purposes only and does not constitute legal advice, legal opinion, or attorney-client relationship. The accuracy of this analysis depends on the completeness and accuracy of the case details provided. All legal interpretations should be verified by a licensed attorney. Please consult with a qualified legal professional for professional legal counsel before taking any legal action. The AI-generated analysis may contain errors or omissions and should not be relied upon as the sole basis for legal decisions.";
+    const disclaimerLines = pdf.splitTextToSize(
+      disclaimerText,
+      pageWidth - margin * 2 - 40 // Increased buffer to prevent overflow
+    );
+    disclaimerLines.forEach((line, idx) => {
+      pdf.text(line, margin, y + idx * 9);
+    });
+  };
+
+  // Download Combined PDF function - generates combined document with selected reports
+  const handleDownloadCombinedPDF = async () => {
+    const selectedCount = Object.values(selectedReports).filter(Boolean).length;
+    if (selectedCount === 0) {
+      alert("Please select at least one report to combine.");
+      return;
+    }
+
+    setIsDownloading(true);
+
+    try {
+      const userName = formData.fullName?.replace(/\s+/g, "_") || "Document";
+      const filename = `LegAIze_Combined_Document_${userName}_${
+        new Date().toISOString().split("T")[0]
+      }.pdf`;
+
+      // Import jsPDF
+      const jspdfModule = await import("jspdf");
+      const jsPDF = jspdfModule.jsPDF || jspdfModule.default;
+
+      // Create PDF
+      const pdf = new jsPDF({
+        unit: "pt",
+        format: "letter",
+        orientation: "portrait",
+      });
+
+      const pageWidth = 612;
+      const pageHeight = 792;
+      const margin = 80; // Increased to 80pt to prevent side overflow
+
+      // Always add title page for combined document
+      await generateTitlePage(pdf, pageWidth, pageHeight, margin);
+      pdf.addPage();
+
+      // Generate selected reports in order
+      const reportOrder = ["salaysay", "summary", "legal"];
+      let isFirstReport = true;
+
+      for (const reportType of reportOrder) {
+        if (selectedReports[reportType]) {
+          // Add page break before each new section (except the first one)
+          if (!isFirstReport) {
+            pdf.addPage();
+          }
+          isFirstReport = false;
+
+          // Generate the report
+          if (reportType === "salaysay") {
+            generateSalaysay(pdf, pageWidth, pageHeight, margin);
+          } else if (reportType === "summary") {
+            generateCaseSummary(pdf, pageWidth, pageHeight, margin);
+          } else if (reportType === "legal") {
+            generateLegalBrief(pdf, pageWidth, pageHeight, margin);
+          }
+        }
+      }
+
+      // Add page numbers
+      const pageCount = pdf.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(9);
+        pdf.setFont("helvetica", "normal");
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(`Page ${i} of ${pageCount}`, pageWidth / 2, pageHeight - 25, {
+          align: "center",
+        });
+      }
+
+      // Save PDF
+      pdf.save(filename);
+    } catch (error) {
+      console.error("Combined PDF generation error:", error);
+      alert("Error generating combined PDF. Please try again.");
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   // Download PDF function - generates PDF directly from data
@@ -1273,11 +1816,11 @@ export default function ReportsGenerator({ analysis }) {
 
       const pageWidth = 612;
       const pageHeight = 792;
-      const margin = 40;
+      const margin = 80; // Increased to 80pt to prevent side overflow
 
       // Add title page if enabled
       if (includeTitlePage) {
-        await generateTitlePage(pdf, pageWidth, pageHeight);
+        await generateTitlePage(pdf, pageWidth, pageHeight, margin);
         pdf.addPage();
       }
 
@@ -1535,6 +2078,119 @@ export default function ReportsGenerator({ analysis }) {
             </div>
           )}
         </CardContent>
+      </Card>
+
+      {/* Report Combination Mode Selection */}
+      <Card className="no-print">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Layers className="h-5 w-5 text-primary" />
+              Document Generation Mode
+            </CardTitle>
+            <Button
+              variant={combineMode ? "default" : "outline"}
+              size="sm"
+              onClick={() => setCombineMode(!combineMode)}
+              className="gap-2"
+            >
+              <Layers className="h-4 w-4" />
+              {combineMode ? "Combined Mode" : "Single Mode"}
+            </Button>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
+            {combineMode
+              ? "Select multiple reports to combine into one document with a cover page"
+              : "Generate individual reports one at a time"}
+          </p>
+        </CardHeader>
+        {combineMode && (
+          <CardContent>
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedReports.salaysay}
+                    onChange={(e) =>
+                      setSelectedReports((prev) => ({
+                        ...prev,
+                        salaysay: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <FileSignature className="h-5 w-5 text-primary" />
+                  <span className="font-medium">
+                    Salaysay (Sworn Statement)
+                  </span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedReports.summary}
+                    onChange={(e) =>
+                      setSelectedReports((prev) => ({
+                        ...prev,
+                        summary: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <ClipboardList className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Case Summary</span>
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer p-3 rounded-lg border border-border hover:bg-secondary/50 transition-colors">
+                  <input
+                    type="checkbox"
+                    checked={selectedReports.legal}
+                    onChange={(e) =>
+                      setSelectedReports((prev) => ({
+                        ...prev,
+                        legal: e.target.checked,
+                      }))
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                  />
+                  <Scale className="h-5 w-5 text-primary" />
+                  <span className="font-medium">Legal Brief</span>
+                </label>
+              </div>
+              <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
+                <div>
+                  <p className="text-sm font-medium">
+                    {Object.values(selectedReports).filter(Boolean).length}{" "}
+                    report(s) selected
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Selected reports will be combined in order: Salaysay → Case
+                    Summary → Legal Brief
+                  </p>
+                </div>
+                <Button
+                  onClick={handleDownloadCombinedPDF}
+                  disabled={
+                    isDownloading ||
+                    Object.values(selectedReports).filter(Boolean).length === 0
+                  }
+                  className="gap-2"
+                >
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <FileCheck className="h-4 w-4" />
+                      Download Combined PDF
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        )}
       </Card>
 
       {/* Report Type Selection */}

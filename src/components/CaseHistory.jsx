@@ -325,7 +325,7 @@ export default function CaseHistory({ onSelectCase }) {
             </div>
           </CardContent>
         </Card>
-
+        
         <Card className="border-border/50">
           <CardContent className="pt-3 pb-3 px-3">
             <div className="flex items-center justify-between">
@@ -363,11 +363,11 @@ export default function CaseHistory({ onSelectCase }) {
           </Card>
         ) : (
           filteredCases.map((caseItem) => {
-            const daysRemaining = getDaysRemaining(caseItem.deadline);
-            const isOverdue = daysRemaining !== null && daysRemaining < 0;
-            const isUrgent = daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 7;
-            
-            return (
+          const daysRemaining = getDaysRemaining(caseItem.deadline);
+          const isOverdue = daysRemaining !== null && daysRemaining < 0;
+          const isUrgent = daysRemaining !== null && daysRemaining > 0 && daysRemaining <= 7;
+          
+          return (
             <Card 
               key={caseItem.id} 
               className="group border-border/50 hover:border-primary/30 transition-all hover:shadow-sm"
@@ -481,7 +481,7 @@ export default function CaseHistory({ onSelectCase }) {
                       </Button>
                     )}
                     
-                    <Dialog
+                    <Dialog 
                       open={deleteDialogOpen && caseToDelete?.id === caseItem.id} 
                       onOpenChange={(open) => {
                         if (!open) {
