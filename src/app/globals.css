@@ -1,26 +1,754 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: #ffffff;
+  --font-outfit: "Outfit", system-ui, sans-serif;
+  --radius: 0.75rem;
+  
+  /* Light mode - RGB colors for html2canvas compatibility */
+  --background: #fafafa;
   --foreground: #171717;
+  --card: #ffffff;
+  --card-foreground: #171717;
+  --popover: #ffffff;
+  --popover-foreground: #171717;
+  --primary: #6366f1;
+  --primary-foreground: #fafafa;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #262626;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
+  --accent-foreground: #262626;
+  --destructive: #ef4444;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #6366f1;
+  --chart-1: #f97316;
+  --chart-2: #14b8a6;
+  --chart-3: #3b82f6;
+  --chart-4: #eab308;
+  --chart-5: #f59e0b;
+  --sidebar: #fafafa;
+  --sidebar-foreground: #171717;
+  --sidebar-primary: #6366f1;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #262626;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #6366f1;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Dark mode as default - RGB colors for html2canvas compatibility */
+.dark, :root {
+  --background: #0f172a;
+  --foreground: #f8fafc;
+  --card: #1e293b;
+  --card-foreground: #f8fafc;
+  --popover: #1e293b;
+  --popover-foreground: #f8fafc;
+  --primary: #818cf8;
+  --primary-foreground: #f8fafc;
+  --secondary: #334155;
+  --secondary-foreground: #f8fafc;
+  --muted: #334155;
+  --muted-foreground: #94a3b8;
+  --accent: rgba(129, 140, 248, 0.2);
+  --accent-foreground: #a5b4fc;
+  --destructive: #f87171;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.1);
+  --ring: #818cf8;
+  --chart-1: #818cf8;
+  --chart-2: #34d399;
+  --chart-3: #fbbf24;
+  --chart-4: #f87171;
+  --chart-5: #c084fc;
+  --sidebar: #020617;
+  --sidebar-foreground: #f8fafc;
+  --sidebar-primary: #818cf8;
+  --sidebar-primary-foreground: #f8fafc;
+  --sidebar-accent: #334155;
+  --sidebar-accent-foreground: #f8fafc;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #818cf8;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-outfit), system-ui, -apple-system, sans-serif;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted));
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground));
+}
+
+/* Hide scrollbar for tab navigation */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Leaflet map popup styles */
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  padding: 0;
+}
+
+.leaflet-popup-content {
+  margin: 12px;
+}
+
+.leaflet-popup-tip-container {
+  margin-top: -1px;
+}
+
+/* Print styles */
+@media print {
+  /* Color and basic reset */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html, body {
+    background: white !important;
+    color: black !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* HIDE EVERYTHING FIRST */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* SHOW ONLY print-wrapper and print-document */
+  .print-wrapper,
+  .print-wrapper *,
+  .print-document,
+  .print-document * {
+    visibility: visible !important;
+  }
+
+  /* Position print content at top */
+  .print-wrapper {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Style print document */
+  .print-document {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    background: white !important;
+    color: black !important;
+    font-family: "Times New Roman", Times, serif !important;
+    font-size: 12pt !important;
+    line-height: 1.6 !important;
+    padding: 0.5in !important;
+    margin: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Typography */
+  .print-document h1 {
+    font-size: 16pt !important;
+    margin-bottom: 12pt !important;
+    color: black !important;
+  }
+
+  .print-document h2 {
+    font-size: 14pt !important;
+    margin-top: 16pt !important;
+    margin-bottom: 8pt !important;
+    color: black !important;
+  }
+
+  .print-document p,
+  .print-document li {
+    color: black !important;
+    margin-bottom: 6pt !important;
+  }
+
+  .print-document ul,
+  .print-document ol {
+    margin-left: 20pt !important;
+  }
+
+  /* Images */
+  .print-document img {
+    display: block !important;
+    visibility: visible !important;
+    max-width: 100% !important;
+  }
+
+  /* Hide non-print elements completely */
+  .no-print,
+  button,
+  [role="tablist"],
+  header,
+  footer,
+  nav {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Page breaks */
+  .print-document .page-break {
+    page-break-before: always !important;
+  }
+
+  .print-document .no-break {
+    page-break-inside: avoid !important;
+  }
+
+  /* Table styling for print */
+  .print-document table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .print-document th,
+  .print-document td {
+    border: 1pt solid #000 !important;
+    padding: 6pt !important;
+    text-align: left !important;
+  }
+
+  /* Signature lines */
+  .print-document .signature-line {
+    border-bottom: 1pt solid black !important;
+    min-width: 200pt !important;
+    display: inline-block !important;
+  }
+
+  /* Page margins */
+  @page {
+    size: letter;
+    margin: 1in;
+  }
+
+  /* Header and footer for pages */
+  @page :first {
+    margin-top: 0.5in;
+  }
+
+  /* Ensure underlines print properly */
+  .print-document .underline,
+  .print-document u,
+  .print-document span.underline {
+    text-decoration: underline !important;
+    text-underline-offset: 2px !important;
+  }
+
+  /* Badge styles for print */
+  .print-document [class*="badge"] {
+    border: 1px solid #000 !important;
+    background: transparent !important;
+    color: black !important;
+    padding: 2pt 6pt !important;
+    border-radius: 2pt !important;
+    font-size: 10pt !important;
+  }
+
+  /* Gray backgrounds for print */
+  .print-document .bg-gray-50,
+  .print-document [class*="bg-secondary"],
+  .print-document [class*="bg-chart"] {
+    background: #f5f5f5 !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Border colors for print */
+  .print-document [class*="border-l-4"] {
+    border-left: 4pt solid #666 !important;
+  }
+
+  /* Links should not show underline */
+  .print-document a {
+    color: black !important;
+    text-decoration: none !important;
+  }
+
+  /* Hide scrollbars */
+  ::-webkit-scrollbar {
+    display: none !important;
+  }
+}
+
+/* ============================================
+   PDF/PRINT COLOR OVERRIDES
+   Forces all colors to RGB for html2canvas compatibility
+   (Tailwind v4 uses lab() colors which html2canvas can't parse)
+   ============================================ */
+
+/* CRITICAL: Override ALL Tailwind color variables with RGB for print-document */
+.print-document,
+.print-document * {
+  /* Override Tailwind's internal color variables */
+  --tw-text-opacity: 1;
+  --tw-bg-opacity: 1;
+  --tw-border-opacity: 1;
+  
+  /* Force color to computed RGB - this is the key fix */
+  color: inherit;
+}
+
+/* Force the root print-document to have explicit colors */
+.print-document {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Override Tailwind's color classes with RGB equivalents */
+.print-document .text-gray-50 { color: #f9fafb !important; }
+.print-document .text-gray-100 { color: #f3f4f6 !important; }
+.print-document .text-gray-200 { color: #e5e7eb !important; }
+.print-document .text-gray-300 { color: #d1d5db !important; }
+.print-document .text-gray-400 { color: #9ca3af !important; }
+.print-document .text-gray-500 { color: #6b7280 !important; }
+.print-document .text-gray-600 { color: #4b5563 !important; }
+.print-document .text-gray-700 { color: #374151 !important; }
+.print-document .text-gray-800 { color: #1f2937 !important; }
+.print-document .text-gray-900 { color: #111827 !important; }
+.print-document .text-black { color: #000000 !important; }
+.print-document .text-white { color: #ffffff !important; }
+.print-document .text-red-500 { color: #ef4444 !important; }
+.print-document .text-red-600 { color: #dc2626 !important; }
+.print-document .text-green-500 { color: #22c55e !important; }
+.print-document .text-green-600 { color: #16a34a !important; }
+.print-document .text-blue-500 { color: #3b82f6 !important; }
+.print-document .text-blue-600 { color: #2563eb !important; }
+.print-document .text-yellow-500 { color: #eab308 !important; }
+.print-document .text-orange-500 { color: #f97316 !important; }
+.print-document .text-primary { color: #818cf8 !important; }
+.print-document .text-secondary { color: #94a3b8 !important; }
+.print-document .text-muted-foreground { color: #94a3b8 !important; }
+
+/* Background color overrides */
+.print-document .bg-white { background-color: #ffffff !important; }
+.print-document .bg-gray-50 { background-color: #f9fafb !important; }
+.print-document .bg-gray-100 { background-color: #f3f4f6 !important; }
+.print-document .bg-gray-200 { background-color: #e5e7eb !important; }
+.print-document .bg-gray-800 { background-color: #1f2937 !important; }
+.print-document .bg-gray-900 { background-color: #111827 !important; }
+.print-document .bg-red-50 { background-color: #fef2f2 !important; }
+.print-document .bg-red-100 { background-color: #fee2e2 !important; }
+.print-document .bg-red-500 { background-color: #ef4444 !important; }
+.print-document .bg-green-50 { background-color: #f0fdf4 !important; }
+.print-document .bg-green-500 { background-color: #22c55e !important; }
+.print-document .bg-blue-50 { background-color: #eff6ff !important; }
+.print-document .bg-blue-500 { background-color: #3b82f6 !important; }
+.print-document .bg-yellow-50 { background-color: #fefce8 !important; }
+.print-document .bg-orange-50 { background-color: #fff7ed !important; }
+.print-document .bg-primary { background-color: #818cf8 !important; }
+.print-document .bg-secondary { background-color: #334155 !important; }
+.print-document .bg-card { background-color: #1e293b !important; }
+
+/* Border color overrides */
+.print-document .border-gray-200 { border-color: #e5e7eb !important; }
+.print-document .border-gray-300 { border-color: #d1d5db !important; }
+.print-document .border-gray-400 { border-color: #9ca3af !important; }
+.print-document .border-gray-500 { border-color: #6b7280 !important; }
+.print-document .border-gray-600 { border-color: #4b5563 !important; }
+.print-document .border-gray-700 { border-color: #374151 !important; }
+.print-document .border-gray-800 { border-color: #1f2937 !important; }
+.print-document .border-primary { border-color: #818cf8 !important; }
+.print-document .border-l-primary { border-left-color: #818cf8 !important; }
+.print-document .border-l-blue-500 { border-left-color: #3b82f6 !important; }
+.print-document .border-l-green-500 { border-left-color: #22c55e !important; }
+.print-document .border-l-red-500 { border-left-color: #ef4444 !important; }
+.print-document .border-l-yellow-500 { border-left-color: #eab308 !important; }
+.print-document .border-l-orange-500 { border-left-color: #f97316 !important; }
+
+/* Loading skeleton animation */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #1e293b 25%,
+    #334155 50%,
+    #1e293b 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* ============================================
+   CUSTOM ANIMATIONS
+   ============================================ */
+
+/* Fade in up animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fade in down animation */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Slide in from left */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide in from right */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Scale up / Pop animation */
+@keyframes scaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Bounce in animation */
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Pulse glow effect */
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px 10px rgba(129, 140, 248, 0);
+  }
+}
+
+/* Float animation */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+/* Rotate animation */
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Stagger children animation helper */
+@keyframes staggerFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animation utility classes */
+.animate-fade-in-up {
+  animation: fadeInUp 0.5s ease-out forwards;
+}
+
+.animate-fade-in-down {
+  animation: fadeInDown 0.5s ease-out forwards;
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft 0.5s ease-out forwards;
+}
+
+.animate-slide-in-right {
+  animation: slideInRight 0.5s ease-out forwards;
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.4s ease-out forwards;
+}
+
+.animate-bounce-in {
+  animation: bounceIn 0.6s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 3s linear infinite;
+}
+
+/* Stagger delay utilities */
+.stagger-1 { animation-delay: 0.1s; opacity: 0; }
+.stagger-2 { animation-delay: 0.2s; opacity: 0; }
+.stagger-3 { animation-delay: 0.3s; opacity: 0; }
+.stagger-4 { animation-delay: 0.4s; opacity: 0; }
+.stagger-5 { animation-delay: 0.5s; opacity: 0; }
+.stagger-6 { animation-delay: 0.6s; opacity: 0; }
+.stagger-7 { animation-delay: 0.7s; opacity: 0; }
+.stagger-8 { animation-delay: 0.8s; opacity: 0; }
+
+/* Tab content animations */
+.tab-content-enter {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+/* Card hover effects */
+.card-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
+}
+
+/* Button press effect */
+.btn-press {
+  transition: transform 0.15s ease;
+}
+
+.btn-press:active {
+  transform: scale(0.95);
+}
+
+/* Glow effect on hover */
+.glow-hover {
+  transition: box-shadow 0.3s ease;
+}
+
+.glow-hover:hover {
+  box-shadow: 0 0 30px -5px rgba(129, 140, 248, 0.5);
+}
+
+/* Icon bounce on hover */
+.icon-bounce:hover svg {
+  animation: bounceIn 0.4s ease;
+}
+
+/* Underline animation */
+.underline-animate {
+  position: relative;
+}
+
+.underline-animate::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: #818cf8;
+  transition: width 0.3s ease;
+}
+
+.underline-animate:hover::after {
+  width: 100%;
+}
+
+/* Ripple effect background */
+.ripple-bg {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple-bg::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.6s ease, height 0.6s ease;
+}
+
+.ripple-bg:hover::before {
+  width: 300%;
+  height: 300%;
+}
+
+/* Gradient border animation */
+@keyframes gradientBorder {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.gradient-border {
+  position: relative;
+}
+
+.gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: linear-gradient(
+    90deg,
+    #818cf8,
+    #34d399,
+    #fbbf24,
+    #818cf8
+  );
+  background-size: 300% 300%;
+  animation: gradientBorder 4s linear infinite;
+  border-radius: inherit;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* Selection styles */
+::selection {
+  background: #818cf8;
+  color: white;
+}
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
